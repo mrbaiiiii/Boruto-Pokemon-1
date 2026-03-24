@@ -1,0 +1,14 @@
+{
+  "name": "boruto-bot",
+  "version": "1.0.0",
+  "description": "Boruto thuộc hạ của Minh Chủ MrBaii",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.5"
+  }
+}

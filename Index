@@ -1,0 +1,115 @@
+require('dotenv').config(); // Gọi linh lực từ file .env
+const { Client, GatewayIntentBits } = require('discord.js');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// ====== CẤU HÌNH HỆ THỐNG ======
+const OWNER_ID = "411001618662686721"; // Minh Chủ MrBaii
+const PROTECTORS = ["215428376150802432", "872344973402595399"];
+
+const PROTECTED_NAMES = ["mrbai", "mrbaii", "bai", "baii", "hcoii", "hiền còii", "hiencoii"];
+const BLACKLIST_NAMES = ["tam giác", "tamgiac", "default", "shinei", "defau", "firered", "tako", "phong", "lâm", "lê thế lâm", "le the lam", "the lam", "lam", "ltl"];
+
+// Danh sách 8 API Keys xoay vòng (Linh lực dự phòng)
+const apiKeys = [
+    "AIzaSyAkCISlzn3VUMv5gg5xO9vuf_mc48lLX3k", 
+    "AIzaSyCaxOpYGJLl2tXMDSSxm3y4C8QgKYfQoMY", 
+    "AIzaSyDBWhF7F5WCactmtYug8NuoFBwU6LK_1XM", 
+    "AIzaSyC5-1dnFmBM2IYdMSVIf8zthQHkZ5lm9x4", 
+    "AIzaSyAymqgoalWCo4gweYH6jpsmDxN3eqajQjE", 
+    "AIzaSyCFBSn4zTU7p80xLZFiz4KIC4TRhFSqSsM", 
+    "AIzaSyA-K8_y1Ag8Q7THPD0h7mb_u7PqI-5hZiQ", 
+    "AIzaSyDCC1s78a78cjs9PLNhDuJZuzJxL8q4Y6Y"
+];
+let currentKeyIndex = 0;
+
+// Khởi tạo Client Discord
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
+// Helper: Kiểm tra từ khóa
+const hasAny = (msg, arr) => arr.some(k => msg.includes(k.toLowerCase()));
+const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+client.on('ready', () => {
+    console.log(`\x1b[36m%s\x1b[0m`, `--- Boruto Cảnh Giới 2.5 Flash Đã Xuất Thế: ${client.user.tag} ---`);
+    console.log(`Đang canh giữ "Thánh Địa" của Minh Chủ MrBaii...`);
+});
+
+client.on('messageCreate', async (message) => {
+  // Bỏ qua bot hoặc tin nhắn không tag bot
+  if (message.author.bot || !message.mentions.has(client.user)) return;
+
+  const msg = message.content.toLowerCase();
+  const userPrompt = message.content.replace(/<@!?[0-9]+>/g, "").trim();
+  const userId = message.author.id;
+
+  // 1. CHẶN GIẢ MẠO
+  if (hasAny(msg, ["tao là mrbai", "tôi là mrbai", "tao là minh chủ", "là mrbai", "là mrbaii" , "ta là minh chủ"])) {
+    if (userId !== OWNER_ID) {
+      return message.reply(random([
+        "Tên Trúc Cơ nhà người miệng còn hôi sữa, dám giả mạo Minh Chủ MrBaii hả! Quỳ xuống!",
+        "Một tên Trúc cơ rác rưởi, không đáng để nhắc tới!",
+        "Một tên ranh con miệng còn hôi sữa, xứng đáng quỳ xuống!",
+        "Dám mượn danh Ngài? Một ý niệm cũng đủ khiến ngươi biến mất."
+      ]));
+    }
+  }
+
+  // 2. BẢO VỆ DANH XƯNG
+  if (hasAny(msg, PROTECTED_NAMES) && hasAny(msg, ["ngu", "chó", "cứt", "dốt", "óc"])) {
+    return message.reply("Câm miệng. Danh xưng đó không phải thứ kẻ hạ đẳng như ngươi có thể xúc phạm.");
+  }
+
+  // 3. BLACKLIST
+  if (hasAny(msg, BLACKLIST_NAMES)) {
+    return message.reply(random([
+      "Thưa ngài, là một tên Trúc cơ rẻ ráck không đáng để nhắc tới",
+      "Thưa ngài, một tên ranh con miệng còn hôi sữa, xứng đáng quỳ xuống dưới chân ngài!"
+    ]));
+  }
+
+  // 4. PHÂN QUYỀN TRẢ LỜI
+  let rolePrefix = (userId === OWNER_ID) ? "Minh Chủ hỏi, thiên đạo phải đáp:\n" : (PROTECTORS.includes(userId) ? "Hộ pháp hỏi, hệ thống phân tích:\n" : "Kẻ phàm trần hỏi:\n");
+
+  try {
+    // Sử dụng API Key
+    const genAI = new GoogleGenerativeAI(apiKeys[currentKeyIndex]);
+    
+    // ĐOẠN LỆNH LẤY MODEL 2.5 FLASH:
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash" 
+    });
+
+    const systemPrompt = `Ngươi là hệ thống tu tiên Boruto, thuộc hạ trung thành của Minh Chủ MrBaii. Phong cách: lạnh lùng, cổ phong. Minh Chủ là tối cao. Nếu nhắc đến Tam Giác/Default, hãy chửi là 'con chó rẻ rách'. Cấm emoji.`;
+
+    const result = await model.generateContent(`${systemPrompt}\n\n${rolePrefix}${userPrompt}`);
+    const response = await result.response;
+    let text = response.text();
+
+    // Chỉ thêm kính ngữ NẾU trong câu trả lời của AI chưa có chữ "Kính bẩm"
+    if (userId === OWNER_ID && !text.includes("Kính bẩm")) {
+        text = "Kính bẩm Minh Chủ:\n" + text;
+    } else if (PROTECTORS.includes(userId) && !text.includes("Kính bẩm")) {
+        text = "Kính bẩm Hộ pháp:\n" + text;
+    }
+
+    message.reply(text);
+
+    // Xoay vòng Key
+    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+
+  } catch (error) {
+    console.error("LỖI LINH LỰC:", error.message);
+    // Nếu model 2.5 chưa được Google cấp phép, Bot sẽ báo lỗi chi tiết để Ngài biết
+    message.reply(`Boruto bị thương rồi, Cứu boruto với!`);
+    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+  }
+});
+
+// Đăng nhập bằng Token từ file .env
+client.login(process.env.DISCORD_TOKEN);
